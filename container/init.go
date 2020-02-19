@@ -2,11 +2,12 @@ package container
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"syscall"
-	log "github.com/sirupsen/logrus"
-	"io/ioutil"
+	"path/filepath"
 	"strings"
 )
 
@@ -15,16 +16,19 @@ func RunContainerInitProcess() error {
 	if cmdArray == nil || len(cmdArray) == 0 {
 		return fmt.Errorf("run container get user command error, cmdArray is nil")
 	}
+
+	setUpMount()
+
 	// MS_NOEXEC 不允许运行其他程序，MS_NOSUID 不允许 set-user-ID 或 set-group-ID，MS_NODEV 不允许访问设备
-	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-	syscall.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
+	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
+	unix.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
 	// 寻找命令的绝对路径
 	path, err := exec.LookPath(cmdArray[0])
 	if err != nil {
 		log.Errorf("exec loop path error %v", err)
 	}
 	log.Infof("find path %s", path)
-	if err := syscall.Exec(path, cmdArray[0:], os.Environ()); err != nil {
+	if err := unix.Exec(path, cmdArray[0:], os.Environ()); err != nil {
 		log.Errorf(err.Error())
 	}
 	return nil
@@ -41,4 +45,44 @@ func readUserCommand() []string {
 	msgStr := string(msg)
 	return strings.Split(msgStr, " ")
 
+}
+
+func setUpMount()  {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Errorf("get current localtion error %v", err)
+		return
+	}
+	log.Infof("current location is %s", pwd)
+	pivotRoot(pwd)
+
+	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
+	unix.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
+	unix.Mount("tmpfs", "/dev", "tmpfs", unix.MS_NOSUID | unix.MS_STRICTATIME, "mode=755")
+}
+
+func pivotRoot(root string) error {
+	// 重新挂载 root
+	if err := unix.Mount(root, root, "bind", unix.MS_BIND | unix.MS_REC, ""); err != nil {
+		return fmt.Errorf("mount rootfs to itself error %v", err)
+	}
+	// 创建 rootfs/.pivot_root
+	pivotDir := filepath.Join(root, ".pivot_root")
+	if err := os.Mkdir(pivotDir, 0777); err != nil {
+		return err
+	}
+	// pivot_root 到新的 rootfs，老的 root 挂载在 rootfs/.pivot_root
+	if err := unix.PivotRoot(root, pivotDir); err != nil {
+		return fmt.Errorf("pivot_root error %v", err)
+	}
+	// 修改当前工作目录到根目录
+	if err := unix.Chdir("/"); err != nil {
+		return fmt.Errorf("chdir to / error %v", err)
+	}
+	// 卸载 rootfs/.pivot_root
+	pivotDir = filepath.Join("/", ".pivot_root")
+	if err := unix.Unmount(pivotDir, unix.MNT_DETACH); err != nil {
+		return fmt.Errorf("unmount pivot_root dir error %v", err)
+	}
+	return os.Remove(pivotDir)
 }

@@ -1,7 +1,7 @@
 package container
 
 import (
-	"syscall"
+	"golang.org/x/sys/unix"
 	"os/exec"
 	"os"
 	log "github.com/sirupsen/logrus"
@@ -16,8 +16,8 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 	}
 	cmd := exec.Command("/proc/self/exe", "init")
 	// 克隆一个新进程，使用 namespace 隔离新进程和外部环境
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS | syscall.CLONE_NEWNET | syscall.CLONE_NEWIPC,
+	cmd.SysProcAttr = &unix.SysProcAttr{
+		Cloneflags: unix.CLONE_NEWUTS | unix.CLONE_NEWPID | unix.CLONE_NEWNS | unix.CLONE_NEWNET | unix.CLONE_NEWIPC,
 	}
 	// 如果指定 tty 参数，则将当前进程输入输出导入到标准输入输出上
 	if tty {
@@ -27,6 +27,7 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 	}
 	// 传入管道文件读取端的句柄
 	cmd.ExtraFiles = []*os.File{readPipe}
+	cmd.Dir = "/root/busybox"
 	return cmd, writePipe
 }
 
