@@ -1,6 +1,8 @@
 package subsystems
 
 type ResourceConfig struct {
+	CpuShare string
+	CpuSet string
 	MemoryLimit string
 }
 

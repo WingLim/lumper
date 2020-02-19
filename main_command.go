@@ -33,7 +33,9 @@ var runCommand = cli.Command{
 		}
 		tty := context.Bool("t")
 		resConf := &subsystems.ResourceConfig{
-			MemoryLimit:context.String("m"),
+			MemoryLimit: context.String("m"),
+			CpuShare: context.String("cpushare"),
+			CpuSet: context.String("cpuset"),
 		}
 		// 启动容器
 		Run(tty, cmdArray, resConf)
@@ -47,6 +49,14 @@ var runCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "m",
 			Usage: "memory limit",
+		},
+		cli.StringFlag{
+			Name:  "cpushare",
+			Usage: "cpushare limit",
+		},
+		cli.StringFlag{
+			Name:  "cpuset",
+			Usage: "cpuset limit",
 		},
 	},
 }

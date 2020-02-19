@@ -11,6 +11,7 @@ const usage = "lumper is a simple container runntime implementation"
 func main()  {
 	app := cli.NewApp()
 	app.Name = "lumper"
+	app.Version = "0.2"
 	app.Usage = usage
 
 	app.Commands = []cli.Command{
