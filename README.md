@@ -25,6 +25,5 @@ A simple container runntime implementation
     - [ ] overlay
   - [ ] volume 数据卷
   - [ ] 打包
-  
-
-- 镜像
+    - [ ] commit
+    - [ ] 单独隔离的文件系统
