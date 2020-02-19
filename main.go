@@ -18,6 +18,7 @@ func main()  {
 		initCommand,
 		runCommand,
 		listCommand,
+		stopCommand,
 	}
 
 	app.Before = func(context *cli.Context) error {
