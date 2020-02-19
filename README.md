@@ -17,7 +17,7 @@ A simple container runntime implementation
   - [x] 管理
     - [x] 查看
     - [x] 删除
-  - [ ] 日志
+  - [x] 日志
   - [ ] 网络
 
 - 镜像

@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"os"
@@ -13,6 +14,7 @@ var (
 	EXIT string = "exited"
 	DefaultInfoLocation string = "/var/run/lumper/%s/"
 	ConfigName string = "config.json"
+	ContainerLogFile string = "container.log"
 )
 
 type ContainerInfo struct {
@@ -25,7 +27,7 @@ type ContainerInfo struct {
 }
 
 // 创建一个父进程
-func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
+func NewParentProcess(tty bool, containerName string) (*exec.Cmd, *os.File) {
 	readPipe, writePipe, err := NewPipe()
 	if err != nil {
 		log.Errorf("new pipe error %v", err)
@@ -41,6 +43,19 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+	} else {
+		dirUrl := fmt.Sprintf(DefaultInfoLocation, containerName)
+		if err := os.MkdirAll(dirUrl, 0622); err != nil {
+			log.Errorf("mkdir %s error %v", dirUrl, err)
+			return nil, nil
+		}
+		stdLogFilePath := dirUrl + ContainerLogFile
+		stdLogFile, err := os.Create(stdLogFilePath)
+		if err != nil {
+			log.Errorf("create file %s error %v", stdLogFilePath, err)
+			return nil, nil
+		}
+		cmd.Stdout = stdLogFile
 	}
 	// 传入管道文件读取端的句柄
 	cmd.ExtraFiles = []*os.File{readPipe}
