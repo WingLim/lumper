@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"lumper/container"
+	"lumper/cgroups/subsystems"
 )
 
 // 初始化容器
@@ -31,14 +32,21 @@ var runCommand = cli.Command{
 			cmdArray = append(cmdArray, arg)
 		}
 		tty := context.Bool("t")
+		resConf := &subsystems.ResourceConfig{
+			MemoryLimit:context.String("m"),
+		}
 		// 启动容器
-		Run(tty, cmdArray)
+		Run(tty, cmdArray, resConf)
 		return nil
 	},
 	Flags:  []cli.Flag{
 		cli.BoolFlag{
 			Name:  "t",
 			Usage: "enable tty",
+		},
+		cli.StringFlag{
+			Name:  "m",
+			Usage: "memory limit",
 		},
 	},
 }
