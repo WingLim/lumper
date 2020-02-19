@@ -76,3 +76,12 @@ var runCommand = cli.Command{
 		},
 	},
 }
+
+var listCommand = cli.Command{
+	Name:   "list",
+	Usage:  "list all the containers",
+	Action: func(context *cli.Context) error {
+		ListContainers()
+		return nil
+	},
+}
