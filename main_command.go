@@ -32,6 +32,13 @@ var runCommand = cli.Command{
 			cmdArray = append(cmdArray, arg)
 		}
 		tty := context.Bool("t")
+		detach := context.Bool("d")
+
+		// tty 和 detach 不同时执行
+		if detach && tty {
+			tty = false
+		}
+
 		resConf := &subsystems.ResourceConfig{
 			MemoryLimit: context.String("m"),
 			CpuShare: context.String("cpushare"),
@@ -57,6 +64,10 @@ var runCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "cpuset",
 			Usage: "cpuset limit",
+		},
+		cli.BoolFlag{
+			Name:  "d",
+			Usage: "detach container",
 		},
 	},
 }
