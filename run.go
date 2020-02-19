@@ -9,7 +9,7 @@ import (
 	"lumper/cgroups"
 )
 
-func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig)  {
+func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName string)  {
 	parent, writePipe := container.NewParentProcess(tty)
 	if parent == nil {
 		log.Errorf("new parent process error")

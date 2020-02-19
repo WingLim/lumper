@@ -44,8 +44,9 @@ var runCommand = cli.Command{
 			CpuShare: context.String("cpushare"),
 			CpuSet: context.String("cpuset"),
 		}
+		containerName := context.String("name")
 		// 启动容器
-		Run(tty, cmdArray, resConf)
+		Run(tty, cmdArray, resConf, containerName)
 		return nil
 	},
 	Flags:  []cli.Flag{
@@ -68,6 +69,10 @@ var runCommand = cli.Command{
 		cli.BoolFlag{
 			Name:  "d",
 			Usage: "detach container",
+		},
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "container name",
 		},
 	},
 }
