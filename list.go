@@ -4,11 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 	"io/ioutil"
 	"os"
 	"text/tabwriter"
 	"lumper/container"
 )
+
+var listCommand = cli.Command{
+	Name:   "list",
+	Usage:  "list all the containers",
+	Action: func(context *cli.Context) error {
+		ListContainers()
+		return nil
+	},
+}
 
 func ListContainers()  {
 	dirUrl := fmt.Sprintf(container.DefaultInfoLocation, "")

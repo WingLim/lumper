@@ -1,15 +1,28 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-	"os"
-	"strconv"
-	"lumper/container"
-	"fmt"
-	"io/ioutil"
 	"encoding/json"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
+	"golang.org/x/sys/unix"
+	"io/ioutil"
+	"lumper/container"
+	"strconv"
 )
+
+var stopCommand = cli.Command{
+	Name:   "stop",
+	Usage:  "stop a container",
+	Action: func(context *cli.Context) error {
+		if len(context.Args()) < 1 {
+			return fmt.Errorf("missing container name")
+		}
+		containerName := context.Args().Get(0)
+		stopContainer(containerName)
+		return nil
+	},
+}
 
 func stopContainer(containerName string)  {
 	// 根据容器名获取主进程 PID
@@ -46,23 +59,6 @@ func stopContainer(containerName string)  {
 	configFilePath := dirUrl + container.ConfigName
 	if err := ioutil.WriteFile(configFilePath, newContentBytes, 0622); err != nil {
 		log.Errorf("write file %s error %v", configFilePath, err)
-	}
-}
-
-func removeContainer(containerName string)  {
-	containerInfo, err := getContainerInfoByName(containerName)
-	if err != nil {
-		log.Errorf("get container %s info error %v", containerName, err)
-		return
-	}
-	if containerInfo.Status != container.STOP {
-		log.Errorf("couldn't remove running container")
-		return
-	}
-	dirUrl := fmt.Sprintf(container.DefaultInfoLocation, containerName)
-	if err := os.RemoveAll(dirUrl); err != nil {
-		log.Errorf("remove file %s error %v", dirUrl, err)
-		return
 	}
 }
 

@@ -3,10 +3,24 @@ package main
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 	"lumper/container"
 	"os"
 	"io/ioutil"
 )
+
+var logCommand = cli.Command{
+	Name:   "logs",
+	Usage:  "print logs of container",
+	Action: func(context *cli.Context) error {
+		if len(context.Args()) < 1 {
+			return fmt.Errorf("missing container name")
+		}
+		containerName := context.Args().Get(0)
+		logContainer(containerName)
+		return nil
+	},
+}
 
 func logContainer(containerName string)  {
 	dirUrl := fmt.Sprintf(container.DefaultInfoLocation, containerName)
