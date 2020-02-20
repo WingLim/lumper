@@ -27,6 +27,9 @@ var runCommand = cli.Command{
 		for _, arg := range context.Args() {
 			cmdArray = append(cmdArray, arg)
 		}
+
+		imageName := cmdArray[0]
+		cmdArray = cmdArray[1:]
 		tty := context.Bool("t")
 		detach := context.Bool("d")
 
@@ -43,7 +46,7 @@ var runCommand = cli.Command{
 		containerName := context.String("name")
 		volume := context.String("v")
 		// 启动容器
-		Run(tty, cmdArray, resConf, containerName, volume)
+		Run(tty, cmdArray, resConf, containerName, volume, imageName)
 		return nil
 	},
 	Flags:  []cli.Flag{
@@ -78,8 +81,8 @@ var runCommand = cli.Command{
 	},
 }
 
-func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName string, volume string)  {
-	parent, writePipe := container.NewParentProcess(tty, containerName, volume)
+func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName, volume, imageName string)  {
+	parent, writePipe := container.NewParentProcess(tty, containerName, volume, imageName)
 	if parent == nil {
 		log.Errorf("new parent process error")
 		return
@@ -105,7 +108,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 	}
 	mntURL := "/root/mnt/"
 	rootURL := "/root/"
-	container.DeleteWorkSpace(rootURL, mntURL, volume)
+	container.DeleteWorkSpace(rootURL, mntURL, volume, imageName)
 }
 
 func sendInitCommand(cmdArray []string, writePipe *os.File)  {
@@ -116,7 +119,7 @@ func sendInitCommand(cmdArray []string, writePipe *os.File)  {
 }
 
 // 记录容器信息
-func recordContainerInfo(containerPID int, cmdArray []string, containerName string) (string, error) {
+func recordContainerInfo(containerPID int, cmdArray []string, containerName, volume string) (string, error) {
 	// 生成 12 位数字容器 ID
 	id := randStringBytes(12)
 	createTime := time.Now().Format("2006/1/2 15:04:05")
@@ -131,6 +134,7 @@ func recordContainerInfo(containerPID int, cmdArray []string, containerName stri
 		Command:     command,
 		CreatedTime: createTime,
 		Status:      container.RUNNING,
+		Volume:      volume,
 	}
 
 	// 将容器信息对象序列号成字符串
