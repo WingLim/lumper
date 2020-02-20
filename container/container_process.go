@@ -149,6 +149,7 @@ func DeleteWorkSpace(rootURL string, mntURL string, volume string) {
 	DeleteWriteLayer(rootURL)
 }
 
+// 删除挂载点
 func DeleteMountPoint(rootURL string, mntURL string) {
 	// 卸载挂载点
 	cmd := exec.Command("umount", mntURL)
@@ -163,6 +164,7 @@ func DeleteMountPoint(rootURL string, mntURL string) {
 	}
 }
 
+// 卸载 volume 和删除挂载点
 func DeleteMountPointWithVolume(rootURL string, mntURL string, volumeUrls []string)  {
 	containerUrl := mntURL + volumeUrls[1]
 	// 卸载 volume
@@ -193,6 +195,7 @@ func DeleteWriteLayer(rootURL string) {
 	}
 }
 
+// 挂载 volume
 func MountVolume(rootURL string, mntURL string, volumeUrls []string) {
 	// 创建宿主机文件目录
 	parentUrl := volumeUrls[0]
@@ -206,7 +209,7 @@ func MountVolume(rootURL string, mntURL string, volumeUrls []string) {
 		log.Errorf("mkdir container dir %s error %v", containerVolumeUrl, err)
 	}
 	// 把宿主机文件目录挂载到容器挂载点
-	dirs := "dirs" + parentUrl
+	dirs := "dirs=" + parentUrl
 	cmd := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", containerVolumeUrl)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
