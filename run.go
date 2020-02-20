@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName string)  {
+func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName string, volume string)  {
 	parent, writePipe := container.NewParentProcess(tty, containerName)
 	if parent == nil {
 		log.Errorf("new parent process error")
@@ -41,7 +41,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 	}
 	mntURL := "/root/mnt/"
 	rootURL := "/root/"
-	container.DeleteWorkSpace(rootURL, mntURL)
+	container.DeleteWorkSpace(rootURL, mntURL, volume)
 }
 
 func sendInitCommand(cmdArray []string, writePipe *os.File)  {

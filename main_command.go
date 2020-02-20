@@ -46,8 +46,9 @@ var runCommand = cli.Command{
 			CpuSet: context.String("cpuset"),
 		}
 		containerName := context.String("name")
+		volume := context.String("v")
 		// 启动容器
-		Run(tty, cmdArray, resConf, containerName)
+		Run(tty, cmdArray, resConf, containerName, volume)
 		return nil
 	},
 	Flags:  []cli.Flag{
@@ -74,6 +75,10 @@ var runCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "name",
 			Usage: "container name",
+		},
+		cli.StringFlag{
+			Name:  "v",
+			Usage: "volume",
 		},
 	},
 }

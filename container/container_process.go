@@ -6,6 +6,7 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var (
@@ -27,7 +28,7 @@ type ContainerInfo struct {
 }
 
 // 创建一个父进程
-func NewParentProcess(tty bool, containerName string) (*exec.Cmd, *os.File) {
+func NewParentProcess(tty bool, containerName string, volume string) (*exec.Cmd, *os.File) {
 	readPipe, writePipe, err := NewPipe()
 	if err != nil {
 		log.Errorf("new pipe error %v", err)
@@ -61,7 +62,7 @@ func NewParentProcess(tty bool, containerName string) (*exec.Cmd, *os.File) {
 	cmd.ExtraFiles = []*os.File{readPipe}
 	mntURL := "/root/mnt/"
 	rootURL := "/root/"
-	NewWorkSpace(rootURL, mntURL)
+	NewWorkSpace(rootURL, mntURL, volume)
 	cmd.Dir = mntURL
 	return cmd, writePipe
 }
@@ -75,10 +76,21 @@ func NewPipe() (*os.File, *os.File, error) {
 	return read, write, nil
 }
 
-func NewWorkSpace(rootURL string, mntURL string) {
+func NewWorkSpace(rootURL string, mntURL string, volume string) {
 	CreateReadOnlyLayer(rootURL)
 	CreateWriteLayer(rootURL)
 	CreateMountPoint(rootURL, mntURL)
+	// 存在 volume 则挂载
+	if volume != "" {
+		volumeUrls := volumeUrlExtract(volume)
+		length := len(volumeUrls)
+		if length == 2 && volumeUrls[0] != "" && volumeUrls[1] != "" {
+			MountVolume(rootURL, mntURL, volumeUrls)
+			log.Infof("%q", volumeUrls)
+		} else {
+			log.Infof("volume parameter input is not correct")
+		}
+	}
 }
 
 // 解压 busybox.tar 到 busybox 目录下，作为容器的只读层
@@ -122,27 +134,84 @@ func CreateMountPoint(rootURL string, mntURL string) {
 	}
 }
 
-func DeleteWorkSpace(rootURL string, mntURL string) {
-	DeleteMountPoint(rootURL, mntURL)
+func DeleteWorkSpace(rootURL string, mntURL string, volume string) {
+	if (volume != "") {
+		volumeUrls := volumeUrlExtract(volume)
+		length := len(volumeUrls)
+		if(length == 2 && volumeUrls[0] != "" && volumeUrls[1] != "") {
+			DeleteMountPointWithVolume(rootURL, mntURL, volumeUrls)
+		} else {
+			DeleteMountPoint(rootURL, mntURL)
+		}
+	} else {
+		DeleteMountPoint(rootURL, mntURL)
+	}
 	DeleteWriteLayer(rootURL)
 }
 
 func DeleteMountPoint(rootURL string, mntURL string) {
+	// 卸载挂载点
 	cmd := exec.Command("umount", mntURL)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Errorf("umount error %v", err)
 	}
+	// 删除 mnt 文件夹
 	if err := os.RemoveAll(mntURL); err != nil {
 		log.Errorf("remove dir %s error %v", mntURL, err)
 	}
+}
+
+func DeleteMountPointWithVolume(rootURL string, mntURL string, volumeUrls []string)  {
+	containerUrl := mntURL + volumeUrls[1]
+	// 卸载 volume
+	cmd := exec.Command("umount", containerUrl)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Errorf("umount volume failed %v", err)
+	}
+	// 卸载挂载点
+	cmd = exec.Command("umount", mntURL)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Errorf("umount mountpoing failed %v", err)
+	}
+	// 删除 mnt 文件夹
+	if err := os.RemoveAll(mntURL); err != nil {
+		log.Infof("remove mountpoint dir %s error", mntURL, err)
+	}
+
 }
 
 func DeleteWriteLayer(rootURL string) {
 	writeURL := rootURL + "writeLayer/"
 	if err := os.RemoveAll(writeURL); err != nil {
 		log.Errorf("remove dir %s error %v", writeURL, err)
+	}
+}
+
+func MountVolume(rootURL string, mntURL string, volumeUrls []string) {
+	// 创建宿主机文件目录
+	parentUrl := volumeUrls[0]
+	if err := os.Mkdir(parentUrl, 0777); err != nil {
+		log.Errorf("mkdir parent dir %s error %v", parentUrl, err)
+	}
+	// 在容器文件系统中创建挂载点
+	containerUrl := volumeUrls[1]
+	containerVolumeUrl := mntURL + containerUrl
+	if err := os.Mkdir(containerVolumeUrl, 0777); err != nil {
+		log.Errorf("mkdir container dir %s error %v", containerVolumeUrl, err)
+	}
+	// 把宿主机文件目录挂载到容器挂载点
+	dirs := "dirs" + parentUrl
+	cmd := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", containerVolumeUrl)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Errorf("mount volume failed %v", err)
 	}
 }
 
@@ -156,4 +225,11 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+// 解析 volume 字符串
+func volumeUrlExtract(volume string) ([]string) {
+	var volumeUrls []string
+	volumeUrls = strings.Split(volume, ":")
+	return  volumeUrls
 }
