@@ -12,7 +12,7 @@ void nsexec(void) {
     // 从环境变量中获取要进入的 PID
     lumper_pid = getenv("lumper_pid");
     if(lumper_pid) {
-        fprintf(stdout, "lumper_pid is %s\n", lumper_pid);
+        //fprintf(stdout, "lumper_pid is %s\n", lumper_pid);
     } else {
         fprintf(stdout, "missing lumper_pid");
         return;
@@ -21,7 +21,7 @@ void nsexec(void) {
     char *lumper_cmd;
     lumper_cmd = getenv("lumper_cmd");
     if(lumper_cmd) {
-        fprintf(stdout, "lumper_cmd is %s\n", lumper_cmd);
+        //fprintf(stdout, "lumper_cmd is %s\n", lumper_cmd);
     } else {
         fprintf(stdout, "missing lumper_cmd");
         return;
@@ -34,7 +34,7 @@ void nsexec(void) {
         if(setns(fd, 0) == -1) {
             fprintf(stderr, "setns on %s namespace failed: %s\n", namespaces[i], strerror(errno));
         } else {
-            fprintf(stdout, "setns on %s namespace succeeded\n", namespaces[i]);
+            //fprintf(stdout, "setns on %s namespace succeeded\n", namespaces[i]);
         }
         close(fd);
     }
