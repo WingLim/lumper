@@ -91,7 +91,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 		log.Error(err)
 	}
 
-	containerName, err := recordContainerInfo(parent.Process.Pid, cmdArray, containerName)
+	containerName, err := recordContainerInfo(parent.Process.Pid, cmdArray, containerName, volume)
 	if err != nil {
 		log.Errorf("record container info error %v", err)
 		return
@@ -106,9 +106,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 		parent.Wait()
 		deleteContainerInfo(containerName)
 	}
-	mntURL := "/root/mnt/"
-	rootURL := "/root/"
-	container.DeleteWorkSpace(rootURL, mntURL, volume, imageName)
+	container.DeleteWorkSpace(volume, imageName)
 }
 
 func sendInitCommand(cmdArray []string, writePipe *os.File)  {
