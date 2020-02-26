@@ -45,8 +45,9 @@ var runCommand = cli.Command{
 		}
 		containerName := context.String("name")
 		volume := context.String("v")
+		env := context.StringSlice("e")
 		// 启动容器
-		Run(tty, cmdArray, resConf, containerName, volume, imageName)
+		Run(tty, cmdArray, env, resConf, containerName, volume, imageName)
 		return nil
 	},
 	Flags:  []cli.Flag{
@@ -78,15 +79,19 @@ var runCommand = cli.Command{
 			Name:  "v",
 			Usage: "volume",
 		},
+		cli.StringSliceFlag{
+			Name:  "e",
+			Usage: "set environment",
+		},
 	},
 }
 
-func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName, volume, imageName string)  {
+func Run(tty bool, cmdArray, env []string, res * subsystems.ResourceConfig, containerName, volume, imageName string)  {
 	containerID := randStringBytes(12)
 	if containerName == "" {
 		containerName = containerID
 	}
-	parent, writePipe := container.NewParentProcess(tty, containerName, volume, imageName)
+	parent, writePipe := container.NewParentProcess(tty, containerName, volume, imageName, env)
 	if parent == nil {
 		log.Errorf("new parent process error")
 		return
