@@ -52,6 +52,7 @@ func CreateReadOnlyLayer(imageName string) error {
 // 创建 writeLayer 文件夹作为容器唯一的可写层
 func CreateWriteLayer(containerName string) {
 	writeUrl := fmt.Sprintf(WriteLayerUrl, containerName)
+	writeUrl = strings.TrimSuffix(writeUrl, "/")
 	if err := os.MkdirAll(writeUrl, 0777); err != nil {
 		log.Errorf("mkdir dir %s error %v", writeUrl, err)
 	}
@@ -59,6 +60,7 @@ func CreateWriteLayer(containerName string) {
 
 func CreateMountPoint(containerName, imageName string) error {
 	mntUrl := fmt.Sprintf(MntUrl, containerName)
+	mntUrl = strings.TrimSuffix(mntUrl, "/")
 	//创建 mnt 文件夹作为挂载点
 	if err := os.MkdirAll(mntUrl, 0777); err != nil {
 		log.Errorf("mkdir dir %s error %v", mntUrl, err)
