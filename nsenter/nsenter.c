@@ -9,6 +9,7 @@
 
 void nsexec(void) {
     char *lumper_pid;
+    int i;
     // 从环境变量中获取要进入的 PID
     lumper_pid = getenv("lumper_pid");
     if(lumper_pid) {
@@ -28,7 +29,7 @@ void nsexec(void) {
     }
     char nspath[1024];
     char *namespaces[] = {"ipc", "uts", "net", "pid", "mnt"};
-    for(int i=0; i<5; i++) {
+    for(i=0; i<5; i++) {
         sprintf(nspath, "/proc/%s/ns/%s", lumper_pid, namespaces[i]);
         int fd = open(nspath, O_RDONLY);
         if(setns(fd, 0) == -1) {
