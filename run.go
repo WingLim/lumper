@@ -109,8 +109,8 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 	if tty {
 		parent.Wait()
 		deleteContainerInfo(containerName)
+		container.DeleteWorkSpace(volume, containerName, imageName)
 	}
-	container.DeleteWorkSpace(volume, containerName, imageName)
 }
 
 func sendInitCommand(cmdArray []string, writePipe *os.File)  {
