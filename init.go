@@ -9,7 +9,7 @@ import (
 // 初始化容器
 var initCommand = cli.Command{
 	Name:   "init",
-	Usage:  "init container process",
+	Usage:  "Init container process",
 	Action: func(context *cli.Context) error {
 		log.Infof("initing")
 		err := container.RunContainerInitProcess()

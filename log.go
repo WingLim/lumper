@@ -11,7 +11,7 @@ import (
 
 var logCommand = cli.Command{
 	Name:   "logs",
-	Usage:  "print logs of container",
+	Usage:  "Print logs of container",
 	Action: func(context *cli.Context) error {
 		if len(context.Args()) < 1 {
 			return fmt.Errorf("missing container name")

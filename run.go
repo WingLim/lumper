@@ -18,7 +18,7 @@ import (
 // 启动一个新容器
 var runCommand = cli.Command{
 	Name:   "run",
-	Usage:  "create a container",
+	Usage:  "Create a container",
 	Action: func(context *cli.Context) error {
 		if len(context.Args()) < 1 {
 			return fmt.Errorf("missing container command")
@@ -82,6 +82,10 @@ var runCommand = cli.Command{
 }
 
 func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, containerName, volume, imageName string)  {
+	containerID := randStringBytes(12)
+	if containerName == "" {
+		containerName = containerID
+	}
 	parent, writePipe := container.NewParentProcess(tty, containerName, volume, imageName)
 	if parent == nil {
 		log.Errorf("new parent process error")
@@ -91,7 +95,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 		log.Error(err)
 	}
 
-	containerName, err := recordContainerInfo(parent.Process.Pid, cmdArray, containerName, volume)
+	containerName, err := recordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerID,volume)
 	if err != nil {
 		log.Errorf("record container info error %v", err)
 		return
@@ -106,7 +110,7 @@ func Run(tty bool, cmdArray []string, res * subsystems.ResourceConfig, container
 		parent.Wait()
 		deleteContainerInfo(containerName)
 	}
-	container.DeleteWorkSpace(volume, imageName)
+	container.DeleteWorkSpace(volume, containerName, imageName)
 }
 
 func sendInitCommand(cmdArray []string, writePipe *os.File)  {
@@ -117,14 +121,9 @@ func sendInitCommand(cmdArray []string, writePipe *os.File)  {
 }
 
 // 记录容器信息
-func recordContainerInfo(containerPID int, cmdArray []string, containerName, volume string) (string, error) {
-	// 生成 12 位数字容器 ID
-	id := randStringBytes(12)
+func recordContainerInfo(containerPID int, cmdArray []string, containerName, id, volume string) (string, error) {
 	createTime := time.Now().Format("2006/1/2 15:04:05")
 	command := strings.Join(cmdArray, "")
-	if containerName == "" {
-		containerName = id
-	}
 	containerInfo := &container.ContainerInfo{
 		Pid:         strconv.Itoa(containerPID),
 		Id:          id,
@@ -150,7 +149,7 @@ func recordContainerInfo(containerPID int, cmdArray []string, containerName, vol
 		log.Errorf("mkdir %s error %v", dirUrl, err)
 		return "", err
 	}
-	fileName := dirUrl + "/" + container.ConfigName
+	fileName := dirUrl + container.ConfigName
 	file, err := os.Create(fileName)
 	defer file.Close()
 	if err != nil {

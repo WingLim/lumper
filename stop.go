@@ -13,7 +13,7 @@ import (
 
 var stopCommand = cli.Command{
 	Name:   "stop",
-	Usage:  "stop a container",
+	Usage:  "Stop a container",
 	Action: func(context *cli.Context) error {
 		if len(context.Args()) < 1 {
 			return fmt.Errorf("missing container name")

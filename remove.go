@@ -10,7 +10,7 @@ import (
 
 var removeCommand = cli.Command{
 	Name:   "rm",
-	Usage:  "remove unused container",
+	Usage:  "Remove unused container",
 	Action: func(context *cli.Context) error {
 		if len(context.Args()) < 1 {
 			return fmt.Errorf("missing container name")

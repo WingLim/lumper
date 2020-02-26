@@ -63,7 +63,7 @@ func NewParentProcess(tty bool, containerName , volume , imageName string) (*exe
 	}
 	// 传入管道文件读取端的句柄
 	cmd.ExtraFiles = []*os.File{readPipe}
-	NewWorkSpace(volume, imageName, containerName)
+	NewWorkSpace(volume, containerName, imageName)
 	cmd.Dir = fmt.Sprintf(MntUrl, containerName)
 	return cmd, writePipe
 }

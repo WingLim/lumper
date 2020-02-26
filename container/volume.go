@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func NewWorkSpace(volume ,imageName, containerName string) {
+func NewWorkSpace(volume , containerName, imageName string) {
 	CreateReadOnlyLayer(imageName)
 	CreateWriteLayer(containerName)
 	CreateMountPoint(containerName, imageName)
@@ -25,8 +25,8 @@ func NewWorkSpace(volume ,imageName, containerName string) {
 	}
 }
 
-// 解压 busybox.tar 到 busybox 目录下，作为容器的只读层
-func CreateReadOnlyLayer(imageName string) {
+// 解压镜像压缩包，作为容器的只读层
+func CreateReadOnlyLayer(imageName string) error {
 	// 镜像解压路径
 	folderUrl := RootUrl + imageName + "/"
 	// 镜像压缩包
@@ -34,41 +34,48 @@ func CreateReadOnlyLayer(imageName string) {
 	exist, err := PathExists(folderUrl)
 	if err != nil {
 		log.Infof("fail to judge whether dir %s exists %v", folderUrl, err)
+		return err
 	}
 	if !exist {
-		if err := os.Mkdir(folderUrl, 0622); err != nil {
+		if err := os.MkdirAll(folderUrl, 0622); err != nil {
 			log.Errorf("mkdir %s error %v",folderUrl, err)
+			return err
 		}
 		if _, err := exec.Command("tar", "-xvf", imageUrl, "-C", folderUrl).CombinedOutput(); err != nil {
 			log.Errorf("unTar dir %s error %v", folderUrl, err)
+			return err
 		}
 	}
+	return nil
 }
 
 // 创建 writeLayer 文件夹作为容器唯一的可写层
 func CreateWriteLayer(containerName string) {
 	writeUrl := fmt.Sprintf(WriteLayerUrl, containerName)
-	if err := os.Mkdir(writeUrl, 0777); err != nil {
+	if err := os.MkdirAll(writeUrl, 0777); err != nil {
 		log.Errorf("mkdir dir %s error %v", writeUrl, err)
 	}
 }
 
-func CreateMountPoint(containerName, imageName string) {
+func CreateMountPoint(containerName, imageName string) error {
 	mntUrl := fmt.Sprintf(MntUrl, containerName)
 	//创建 mnt 文件夹作为挂载点
-	if err := os.Mkdir(mntUrl, 0777); err != nil {
+	if err := os.MkdirAll(mntUrl, 0777); err != nil {
 		log.Errorf("mkdir dir %s error %v", mntUrl, err)
+		return err
 	}
 	tmpWritLayer := fmt.Sprintf(WriteLayerUrl, containerName)
 	tmpImageLocation := RootUrl + imageName
 	// 把 writeLayer 目录和 busybox 目录挂载到 mnt 目录下
-	dirs := "dirs=" + tmpWritLayer + "writeLayer:" + tmpImageLocation
+	dirs := "dirs=" + tmpWritLayer + ":" + tmpImageLocation
 	if _, err := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", mntUrl).CombinedOutput(); err != nil {
 		log.Errorf("mount dirs error %v", err)
+		return err
 	}
+	return nil
 }
 
-func DeleteWorkSpace(volume, containerName string) {
+func DeleteWorkSpace(volume, containerName, imageName string) {
 	if (volume != "") {
 		volumeUrls := volumeUrlExtract(volume)
 		length := len(volumeUrls)
@@ -84,35 +91,41 @@ func DeleteWorkSpace(volume, containerName string) {
 }
 
 // 删除挂载点
-func DeleteMountPoint(containerName string) {
+func DeleteMountPoint(containerName string) error {
 	mntUrl := fmt.Sprintf(MntUrl, containerName)
 	// 卸载挂载点
-	if _, err := exec.Command("umount", mntUrl).CombinedOutput(); err != nil {
+	_, err := exec.Command("umount", mntUrl).CombinedOutput()
+	if err != nil {
 		log.Errorf("umount error %v", err)
+		return err
 	}
 	// 删除 mnt 文件夹
 	if err := os.RemoveAll(mntUrl); err != nil {
 		log.Errorf("remove dir %s error %v", mntUrl, err)
+		return err
 	}
+	return nil
 }
 
 // 卸载 volume 和删除挂载点
-func DeleteMountPointWithVolume(volumeUrls []string, containerName string)  {
+func DeleteMountPointWithVolume(volumeUrls []string, containerName string) error {
 	mntUrl := fmt.Sprintf(MntUrl, containerName)
 	containerUrl := mntUrl + volumeUrls[1]
 	// 卸载 volume
 	if _, err := exec.Command("umount", containerUrl).CombinedOutput(); err != nil {
 		log.Errorf("umount volume failed %v", err)
+		return err
 	}
 	// 卸载挂载点
 	if _, err := exec.Command("umount", mntUrl).CombinedOutput(); err != nil {
 		log.Errorf("umount mountpoing failed %v", err)
+		return err
 	}
 	// 删除 mnt 文件夹
 	if err := os.RemoveAll(mntUrl); err != nil {
 		log.Infof("remove mountpoint dir %s error", mntUrl, err)
 	}
-
+	return nil
 }
 
 func DeleteWriteLayer(containerName string) {
@@ -123,7 +136,7 @@ func DeleteWriteLayer(containerName string) {
 }
 
 // 挂载 volume
-func MountVolume(volumeUrls []string, containerName string) {
+func MountVolume(volumeUrls []string, containerName string) error {
 	// 创建宿主机文件目录
 	parentUrl := volumeUrls[0]
 	if err := os.Mkdir(parentUrl, 0777); err != nil {
@@ -138,13 +151,12 @@ func MountVolume(volumeUrls []string, containerName string) {
 	}
 	// 把宿主机文件目录挂载到容器挂载点
 	dirs := "dirs=" + parentUrl
-	cmd := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", containerVolumeUrl)
-	// 查看错误
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	_, err := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", containerVolumeUrl).CombinedOutput()
+	if err != nil {
 		log.Errorf("mount volume failed %v", err)
+		return err
 	}
+	return nil
 }
 
 // 判断文件路径是否存在

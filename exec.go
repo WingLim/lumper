@@ -15,7 +15,7 @@ const ENV_EXEC_CMD = "lumper_cmd"
 
 var execCommand = cli.Command{
 	Name:   "exec",
-	Usage:  "exec command in container",
+	Usage:  "Exec command in container",
 	Action: func(context *cli.Context) error {
 		if os.Getenv(ENV_EXEC_PID) != "" {
 			log.Infof("pidf callback pid %s", os.Getpid())
