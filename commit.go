@@ -10,7 +10,7 @@ import (
 
 var commitCommand = cli.Command{
 	Name:   "commit",
-	Usage:  "commit a container into image",
+	Usage:  "Commit a container into new image",
 	Action: func(context *cli.Context) error {
 		if len(context.Args()) < 2 {
 			return fmt.Errorf("missing container name or image name")
