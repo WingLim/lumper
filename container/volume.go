@@ -137,14 +137,19 @@ func DeleteWriteLayer(containerName string) {
 
 // 挂载 volume
 func MountVolume(volumeUrls []string, containerName string) error {
-	// 创建宿主机文件目录
 	parentUrl := volumeUrls[0]
-	if err := os.Mkdir(parentUrl, 0777); err != nil {
-		log.Errorf("mkdir parent dir %s error %v", parentUrl, err)
+	// 判断宿主机是否存在该文件目录，不存在则创建
+	exist, _ := PathExists(parentUrl)
+	if !exist {
+		// 创建宿主机文件目录
+		if err := os.Mkdir(parentUrl, 0777); err != nil {
+			log.Errorf("mkdir parent dir %s error %v", parentUrl, err)
+		}
 	}
 	// 在容器文件系统中创建挂载点
 	containerUrl := volumeUrls[1]
 	mntUrl := fmt.Sprintf(MntUrl, containerName)
+	mntUrl = strings.TrimSuffix(mntUrl, "/")
 	containerVolumeUrl := mntUrl + containerUrl
 	if err := os.Mkdir(containerVolumeUrl, 0777); err != nil {
 		log.Errorf("mkdir container dir %s error %v", containerVolumeUrl, err)
