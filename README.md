@@ -4,10 +4,10 @@ A simple container runntime implementation
 ## Todo
 - 容器
   - 操作
-    - [ ] 创建
+    - [x] 创建
       - [x] 容器名
       - [x] 后台运行
-      - [ ] 环境变量
+      - [x] 环境变量
     - [x] 资源限制
       - [x] 内存
       - [x] cpushare
