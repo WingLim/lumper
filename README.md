@@ -24,6 +24,6 @@ A simple container runntime implementation
   - [x] AUFS
     - [ ] overlay
   - [x] volume 数据卷
-  - [ ] 打包
-    - [ ] commit
-    - [ ] 单独隔离的文件系统
+  - [x] 打包
+    - [x] commit
+    - [x] 单独隔离的文件系统
