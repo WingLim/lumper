@@ -12,9 +12,11 @@ var (
 	RUNNING 			string = "running"
 	STOP 				string = "stopped"
 	EXIT 				string = "exited"
-	DefaultInfoLocation string = "/var/run/lumper/%s/"
+	DefaultInfoLocation string = "/var/lib/lumper/containers/%s/"
 	ConfigName 			string = "config.json"
 	ContainerLogFile 	string = "container.log"
+	Overlay2Location	string = "/var/lib/lumper/overlay2/%s/"
+	ImageLocation		string = "/var/lib/lumper/overlay2/images/%s/"
 	RootUrl 			string = "/root/"
 	MntUrl 				string = "/root/mnt/%s/"
 	WriteLayerUrl 		string = "/root/writeLayer/%s/"
@@ -37,8 +39,8 @@ func NewParentProcess(tty bool, containerName , volume , imageName string, env [
 		log.Errorf("new pipe error %v", err)
 		return nil, nil
 	}
-	cmd := exec.Command("/proc/self/exe", "init")
 	// 克隆一个新进程，使用 namespace 隔离新进程和外部环境
+	cmd := exec.Command("/proc/self/exe", "init")
 	cmd.SysProcAttr = &unix.SysProcAttr{
 		Cloneflags: unix.CLONE_NEWUTS | unix.CLONE_NEWPID | unix.CLONE_NEWNS | unix.CLONE_NEWNET | unix.CLONE_NEWIPC,
 	}
@@ -65,7 +67,7 @@ func NewParentProcess(tty bool, containerName , volume , imageName string, env [
 	cmd.ExtraFiles = []*os.File{readPipe}
 	cmd.Env = append(os.Environ(), env...)
 	NewWorkSpace(volume, containerName, imageName)
-	cmd.Dir = fmt.Sprintf(MntUrl, containerName)
+	cmd.Dir = fmt.Sprintf(Overlay2Location, containerName) + "merged"
 	return cmd, writePipe
 }
 

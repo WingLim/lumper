@@ -28,7 +28,7 @@ func NewWorkSpace(volume , containerName, imageName string) {
 // 解压镜像压缩包，作为容器的只读层
 func CreateReadOnlyLayer(imageName string) error {
 	// 镜像解压路径
-	folderUrl := RootUrl + imageName + "/"
+	folderUrl := fmt.Sprintf(ImageLocation, imageName)
 	// 镜像压缩包
 	imageUrl := RootUrl + imageName + ".tar"
 	exist, err := PathExists(folderUrl)
@@ -49,26 +49,33 @@ func CreateReadOnlyLayer(imageName string) error {
 	return nil
 }
 
-// 创建 writeLayer 文件夹作为容器唯一的可写层
+// 创建 upper 和 work 文件夹作为容器的可写层
 func CreateWriteLayer(containerName string) {
-	writeUrl := fmt.Sprintf(WriteLayerUrl, containerName)
-	if err := os.MkdirAll(writeUrl, 0777); err != nil {
-		log.Errorf("mkdir dir %s error %v", writeUrl, err)
+	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
+	upperUrl := containerUrl + "upper"
+	workUrl := containerUrl + "work"
+	if err := os.MkdirAll(upperUrl, 0777); err != nil {
+		log.Errorf("mkdir dir %s error %v", upperUrl, err)
+	}
+	if err := os.MkdirAll(workUrl, 0777); err != nil {
+		log.Errorf("mkdir dir %s error %v", workUrl, err)
 	}
 }
 
 func CreateMountPoint(containerName, imageName string) error {
-	mntUrl := fmt.Sprintf(MntUrl, containerName)
-	//创建 mnt 文件夹作为挂载点
-	if err := os.MkdirAll(mntUrl, 0777); err != nil {
-		log.Errorf("mkdir dir %s error %v", mntUrl, err)
+	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
+	mergeUrl := containerUrl + "merged"
+	//创建 merged 文件夹作为挂载点
+	if err := os.MkdirAll(mergeUrl, 0777); err != nil {
+		log.Errorf("mkdir dir %s error %v", mergeUrl, err)
 		return err
 	}
-	tmpWritLayer := fmt.Sprintf(WriteLayerUrl, containerName)
-	tmpImageLocation := RootUrl + imageName
+	upperUrl := containerUrl + "upper"
+	workUrl := containerUrl + "work"
+	tmpImageLocation := fmt.Sprintf(ImageLocation, imageName)
 	// 把 writeLayer 目录和 busybox 目录挂载到 mnt 目录下
-	dirs := "dirs=" + tmpWritLayer + ":" + tmpImageLocation
-	if _, err := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", mntUrl).CombinedOutput(); err != nil {
+	dirs := "lowerdir=" + tmpImageLocation +",upperdir=" + upperUrl + ",workdir=" + workUrl
+	if _, err := exec.Command("mount", "-t", "overlay", "overlay", "-o", dirs, mergeUrl).CombinedOutput(); err != nil {
 		log.Errorf("mount dirs error %v", err)
 		return err
 	}
@@ -87,21 +94,22 @@ func DeleteWorkSpace(volume, containerName, imageName string) {
 	} else {
 		DeleteMountPoint(containerName)
 	}
-	DeleteWriteLayer(containerName)
+	DeleteContainerFolder(containerName)
 }
 
 // 删除挂载点
 func DeleteMountPoint(containerName string) error {
-	mntUrl := fmt.Sprintf(MntUrl, containerName)
+	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
+	mergedUrl := containerUrl + "merged"
 	// 卸载挂载点
-	_, err := exec.Command("umount", mntUrl).CombinedOutput()
+	_, err := exec.Command("umount", mergedUrl).CombinedOutput()
 	if err != nil {
-		log.Errorf("umount error %v", err)
+		log.Errorf("umount merged floder failed %v", err)
 		return err
 	}
 	// 删除 mnt 文件夹
-	if err := os.RemoveAll(mntUrl); err != nil {
-		log.Errorf("remove dir %s error %v", mntUrl, err)
+	if err := os.RemoveAll(mergedUrl); err != nil {
+		log.Errorf("remove merged floder %s error %v", mergedUrl, err)
 		return err
 	}
 	return nil
@@ -109,29 +117,31 @@ func DeleteMountPoint(containerName string) error {
 
 // 卸载 volume 和删除挂载点
 func DeleteMountPointWithVolume(volumeUrls []string, containerName string) error {
-	mntUrl := fmt.Sprintf(MntUrl, containerName)
-	containerUrl := mntUrl + volumeUrls[1]
+	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
+	mergedUrl := containerUrl + "merged"
+	containerVolumeUrl := mergedUrl + volumeUrls[1]
 	// 卸载 volume
-	if _, err := exec.Command("umount", containerUrl).CombinedOutput(); err != nil {
+	if _, err := exec.Command("umount", containerVolumeUrl).CombinedOutput(); err != nil {
 		log.Errorf("umount volume failed %v", err)
 		return err
 	}
 	// 卸载挂载点
-	if _, err := exec.Command("umount", mntUrl).CombinedOutput(); err != nil {
-		log.Errorf("umount mountpoing failed %v", err)
+	if _, err := exec.Command("umount", mergedUrl).CombinedOutput(); err != nil {
+		log.Errorf("umount merged floder failed %v", err)
 		return err
 	}
 	// 删除 mnt 文件夹
-	if err := os.RemoveAll(mntUrl); err != nil {
-		log.Infof("remove mountpoint dir %s error", mntUrl, err)
+	if err := os.RemoveAll(mergedUrl); err != nil {
+		log.Infof("remove merged floder %s error", mergedUrl, err)
 	}
 	return nil
 }
 
-func DeleteWriteLayer(containerName string) {
-	writeUrl := fmt.Sprintf(WriteLayerUrl,  containerName)
-	if err := os.RemoveAll(writeUrl); err != nil {
-		log.Errorf("remove dir %s error %v", writeUrl, err)
+// 删除容器文件夹
+func DeleteContainerFolder(containerName string) {
+	containerFolder := fmt.Sprintf(Overlay2Location,  containerName)
+	if err := os.RemoveAll(containerFolder); err != nil {
+		log.Errorf("remove dir %s error %v", containerFolder, err)
 	}
 }
 
@@ -147,16 +157,13 @@ func MountVolume(volumeUrls []string, containerName string) error {
 		}
 	}
 	// 在容器文件系统中创建挂载点
-	containerUrl := volumeUrls[1]
-	mntUrl := fmt.Sprintf(MntUrl, containerName)
-	mntUrl = strings.TrimSuffix(mntUrl, "/")
-	containerVolumeUrl := mntUrl + containerUrl
+	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
+	containerVolumeUrl := containerUrl + "merged" + volumeUrls[1]
 	if err := os.Mkdir(containerVolumeUrl, 0777); err != nil {
 		log.Errorf("mkdir container dir %s error %v", containerVolumeUrl, err)
 	}
 	// 把宿主机文件目录挂载到容器挂载点
-	dirs := "dirs=" + parentUrl
-	_, err := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", containerVolumeUrl).CombinedOutput()
+	_, err := exec.Command("mount", "-o", "bind", parentUrl, containerVolumeUrl).CombinedOutput()
 	if err != nil {
 		log.Errorf("mount volume failed %v", err)
 		return err

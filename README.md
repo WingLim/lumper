@@ -19,14 +19,14 @@ A simple container runntime implementation
     - [x] 删除
   - [x] 日志
   - [ ] 网络
-  - [ ] 创建网络
+    - [ ] 创建网络
     - [ ] 连接网络
     - [ ] 查看网络
     - [ ] 地址分配
   
 - 镜像
   - [x] AUFS
-    - [ ] overlay2
+    - [x] overlay2
   - [x] volume 数据卷
   - [x] 打包
     - [x] commit
