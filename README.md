@@ -26,7 +26,7 @@ A simple container runntime implementation
   
 - 镜像
   - [x] AUFS
-    - [ ] overlay
+    - [ ] overlay2
   - [x] volume 数据卷
   - [x] 打包
     - [x] commit
