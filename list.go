@@ -13,6 +13,7 @@ import (
 
 var listCommand = cli.Command{
 	Name:   "list",
+	Aliases: []string{"ls"},
 	Usage:  "List all the containers",
 	Action: func(context *cli.Context) error {
 		ListContainers()
