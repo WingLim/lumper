@@ -30,6 +30,9 @@ type ContainerInfo struct {
 	CreatedTime string `json:"createTime"` // 创建时间
 	Status      string `json:"status"`     // 容器状态
 	Volume      string `json:"volume"` // 容器数据卷
+	Network		string `json:"network"` // 网络驱动名
+	IPAddress	string `json:"ipaddress"` // IP地址
+	PortMapping []string `json:"portmapping"` // 端口映射
 }
 
 // 创建一个父进程

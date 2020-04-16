@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"lumper/cgroups/subsystems"
+	"lumper/network"
 	"os"
 	"lumper/container"
 	"strconv"
@@ -30,8 +31,8 @@ var runCommand = cli.Command{
 
 		imageName := cmdArray[0]
 		cmdArray = cmdArray[1:]
-		tty := context.Bool("t")
-		detach := context.Bool("d")
+		tty := context.Bool("tty")
+		detach := context.Bool("detach")
 
 		// tty 和 detach 不同时执行
 		if detach && tty {
@@ -39,28 +40,30 @@ var runCommand = cli.Command{
 		}
 
 		resConf := &subsystems.ResourceConfig{
-			MemoryLimit: context.String("m"),
+			MemoryLimit: context.String("memory"),
 			CpuShare: context.String("cpushare"),
 			CpuSet: context.String("cpuset"),
 		}
 		containerName := context.String("name")
-		volume := context.String("v")
-		env := context.StringSlice("e")
+		volume := context.String("volume")
+		env := context.StringSlice("env")
+		nw := context.String("net")
+		portmapping := context.StringSlice("port")
 		// 启动容器
-		Run(tty, cmdArray, env, resConf, containerName, volume, imageName)
+		Run(tty, cmdArray, env, portmapping, resConf, containerName, volume, imageName, nw)
 		return nil
 	},
 	Flags:  []cli.Flag{
 		cli.BoolFlag{
-			Name:  "t",
+			Name:  "tty, t",
 			Usage: "enable tty",
 		},
 		cli.StringFlag{
-			Name:  "m",
+			Name:  "memory, m",
 			Usage: "memory limit",
 		},
 		cli.StringFlag{
-			Name:  "cpushare",
+			Name:  "cpushare, c",
 			Usage: "cpushare limit",
 		},
 		cli.StringFlag{
@@ -68,7 +71,7 @@ var runCommand = cli.Command{
 			Usage: "cpuset limit",
 		},
 		cli.BoolFlag{
-			Name:  "d",
+			Name:  "detach, d",
 			Usage: "detach container",
 		},
 		cli.StringFlag{
@@ -76,17 +79,25 @@ var runCommand = cli.Command{
 			Usage: "container name",
 		},
 		cli.StringFlag{
-			Name:  "v",
+			Name:  "volume, v",
 			Usage: "volume",
 		},
 		cli.StringSliceFlag{
-			Name:  "e",
+			Name:  "env, e",
 			Usage: "set environment",
+		},
+		cli.StringFlag{
+			Name:  "net",
+			Usage: "container network",
+		},
+		cli.StringSliceFlag{
+			Name: "port, p",
+			Usage: "port mapping",
 		},
 	},
 }
 
-func Run(tty bool, cmdArray, env []string, res * subsystems.ResourceConfig, containerName, volume, imageName string)  {
+func Run(tty bool, cmdArray, env, portmapping []string, res * subsystems.ResourceConfig, containerName, volume, imageName, nw string)  {
 	containerID := randStringBytes(12)
 	if containerName == "" {
 		containerName = containerID
@@ -100,21 +111,48 @@ func Run(tty bool, cmdArray, env []string, res * subsystems.ResourceConfig, cont
 		log.Error(err)
 	}
 
-	containerName, err := recordContainerInfo(parent.Process.Pid, cmdArray, containerName, containerID,volume)
-	if err != nil {
-		log.Errorf("record container info error %v", err)
-		return
+	createTime := time.Now().Format("2006/1/2 15:04:05")
+	command := strings.Join(cmdArray, "")
+	containerInfo := &container.ContainerInfo{
+		Pid:         strconv.Itoa(parent.Process.Pid),
+		Id:          containerID,
+		Name:        containerName,
+		Command:     command,
+		CreatedTime: createTime,
+		Status:      container.RUNNING,
+		Network:	 nw,
+		Volume:      volume,
+		PortMapping: portmapping,
 	}
+
 	// 创建 Cgroup Manager
 	cgroupManager := cgroups.NewCgroupManager("lumper-cgroup")
 	defer cgroupManager.Destroy()
 	cgroupManager.Set(res)
 	cgroupManager.Apply(parent.Process.Pid)
+
+	if nw != "" {
+		network.Init()
+		if err := network.Connect(nw, containerInfo); err != nil {
+			log.Errorf("connect network error %v", err)
+			return
+		}
+	}
+
+	containerName, err := recordContainerInfo(containerInfo)
+	if err != nil {
+		log.Errorf("record container info error %v", err)
+		return
+	}
+
 	sendInitCommand(cmdArray, writePipe)
 	if tty {
 		parent.Wait()
 		deleteContainerInfo(containerName)
 		container.DeleteWorkSpace(volume, containerName, imageName)
+		if nw != "" {
+			network.ReleaseContainerNetwork(containerInfo)
+		}
 	}
 }
 
@@ -126,21 +164,9 @@ func sendInitCommand(cmdArray []string, writePipe *os.File)  {
 }
 
 // 记录容器信息
-func recordContainerInfo(containerPID int, cmdArray []string, containerName, id, volume string) (string, error) {
-	createTime := time.Now().Format("2006/1/2 15:04:05")
-	command := strings.Join(cmdArray, "")
-	containerInfo := &container.ContainerInfo{
-		Pid:         strconv.Itoa(containerPID),
-		Id:          id,
-		Name:        containerName,
-		Command:     command,
-		CreatedTime: createTime,
-		Status:      container.RUNNING,
-		Volume:      volume,
-	}
-
+func recordContainerInfo(cinfo *container.ContainerInfo) (string, error) {
 	// 将容器信息对象序列号成字符串
-	jsonBytes, err := json.Marshal(containerInfo)
+	jsonBytes, err := json.Marshal(cinfo)
 	if err != nil {
 		log.Errorf("record container info error %v", err)
 		return "", err
@@ -148,7 +174,7 @@ func recordContainerInfo(containerPID int, cmdArray []string, containerName, id,
 	jsonStr := string(jsonBytes)
 
 	// 拼接容器信息储存路径
-	dirUrl := fmt.Sprintf(container.DefaultInfoLocation, containerName)
+	dirUrl := fmt.Sprintf(container.DefaultInfoLocation, cinfo.Name)
 	// 如果路径不存在则创建
 	if err := os.MkdirAll(dirUrl, 0622); err != nil {
 		log.Errorf("mkdir %s error %v", dirUrl, err)
@@ -165,7 +191,7 @@ func recordContainerInfo(containerPID int, cmdArray []string, containerName, id,
 		log.Errorf("file write string error %v", err)
 		return "", err
 	}
-	return containerName, nil
+	return cinfo.Name, nil
 }
 
 // 删除容器信息

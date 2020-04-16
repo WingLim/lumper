@@ -11,7 +11,8 @@ const usage = "lumper is a simple container runntime implementation"
 func main()  {
 	app := cli.NewApp()
 	app.Name = "lumper"
-	app.Version = "0.7"
+	app.Version = "1.0"
+	app.UseShortOptionHandling = true
 	app.Usage = usage
 
 	app.Commands = []cli.Command{
@@ -23,6 +24,7 @@ func main()  {
 		logCommand,
 		execCommand,
 		commitCommand,
+		networkCommand,
 	}
 
 	app.Before = func(context *cli.Context) error {
