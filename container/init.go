@@ -19,9 +19,6 @@ func RunContainerInitProcess() error {
 
 	setUpMount()
 
-	// MS_NOEXEC 不允许运行其他程序，MS_NOSUID 不允许 set-user-ID 或 set-group-ID，MS_NODEV 不允许访问设备
-	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
-	unix.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
 	// 寻找命令的绝对路径
 	path, err := exec.LookPath(cmdArray[0])
 	if err != nil {
@@ -54,8 +51,12 @@ func setUpMount()  {
 		return
 	}
 	log.Infof("current location is %s", pwd)
+
+	unix.Mount("", "/", "", unix.MS_PRIVATE | unix.MS_REC, "")
+
 	pivotRoot(pwd)
 
+	// MS_NOEXEC 不允许运行其他程序，MS_NOSUID 不允许 set-user-ID 或 set-group-ID，MS_NODEV 不允许访问设备
 	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	unix.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), "")
 	unix.Mount("tmpfs", "/dev", "tmpfs", unix.MS_NOSUID | unix.MS_STRICTATIME, "mode=755")
