@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
 	"strings"
@@ -102,8 +103,7 @@ func DeleteMountPoint(containerName string) error {
 	containerUrl := fmt.Sprintf(Overlay2Location, containerName)
 	mergedUrl := containerUrl + "merged"
 	// 卸载挂载点
-	_, err := exec.Command("umount", mergedUrl).CombinedOutput()
-	if err != nil {
+	if err := unix.Unmount(mergedUrl, unix.MNT_FORCE) ; err != nil {
 		log.Errorf("umount merged floder failed %v", err)
 		return err
 	}
